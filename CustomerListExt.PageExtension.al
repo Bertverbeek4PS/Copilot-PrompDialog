@@ -2,7 +2,7 @@ pageextension 50100 CustomerExt extends "Customer Card"
 {
     actions
     {
-        addafter(NewBlanketSalesOrder)
+        addafter(WordTemplate)
         {
             action(Copilot)
             {
