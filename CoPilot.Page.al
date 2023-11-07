@@ -1,10 +1,10 @@
 page 50100 Copilot
 {
     PageType = PromptDialog;
-    SourceTableTemporary = true;
     Extensible = false;
     ApplicationArea = All;
-    SourceTable = Customer;
+    SourceTable = "Customer";
+    SourceTableTemporary = true;
     Caption = 'Copilot Fps';
     IsPreview = true;
 
@@ -12,16 +12,14 @@ page 50100 Copilot
     {
         area(Prompt)
         {
-            field(UserInput; UserInput)
-            {
-                ShowCaption = false;
-                MultiLine = true;
-                ApplicationArea = All;
 
-                trigger OnValidate()
-                begin
-                    CurrPage.Update();
-                end;
+            part(custLedgerEntries; "Cust Ledger Entries Copilot")
+            {
+                Caption = 'Closed Entries';
+            }
+            part(custLedgerEntriesOpen; "Cust Ledger Entries Copilot")
+            {
+                Caption = 'Select open entry';
             }
         }
         area(Content)
@@ -45,8 +43,12 @@ page 50100 Copilot
                 trigger OnAction()
                 var
                     Copilot: Codeunit "Copilot";
+                    CopilotCustLedgerEntries: Record "Copilot Cust Ledger Entries";
+                    CopilotCustLedgerEntriesOpen: Record "Copilot Cust Ledger Entries";
                 begin
-                    Response := Copilot.Generate(UserInput);
+                    CurrPage.custLedgerEntries.Page.GetRecords(CopilotCustLedgerEntries);
+                    CurrPage.custLedgerEntriesOpen.Page.GetRecords(CopilotCustLedgerEntriesOpen);
+                    Response := Copilot.Generate(CopilotCustLedgerEntries, CopilotCustLedgerEntriesOpen);
                     CurrPage.Update();
                 end;
             }
@@ -58,17 +60,21 @@ page 50100 Copilot
             systemaction(Cancel)
             {
                 Caption = 'Discard';
-                ToolTip = 'Discard suggestio proposed by Dynamics 365 Copilot.';
+                ToolTip = 'Discard suggestion proposed by Dynamics 365 Copilot.';
             }
             systemaction(Regenerate)
             {
                 Caption = 'Regenerate';
-                ToolTip = 'Regenerate Item Substitutions proposal with Dynamics 365 Copilot.';
+                ToolTip = 'Regenerate proposal with Dynamics 365 Copilot.';
                 trigger OnAction()
                 var
                     Copilot: Codeunit "Copilot";
+                    CopilotCustLedgerEntries: Record "Copilot Cust Ledger Entries";
+                    CopilotCustLedgerEntriesOpen: Record "Copilot Cust Ledger Entries";
                 begin
-                    Response := Copilot.Generate(UserInput);
+                    CurrPage.custLedgerEntries.Page.GetRecords(CopilotCustLedgerEntries);
+                    CurrPage.custLedgerEntriesOpen.Page.GetRecords(CopilotCustLedgerEntriesOpen);
+                    Response := Copilot.Generate(CopilotCustLedgerEntries, CopilotCustLedgerEntriesOpen);
                     CurrPage.Update();
                 end;
             }
@@ -78,11 +84,21 @@ page 50100 Copilot
     trigger OnOpenPage()
     var
         Copilot: Codeunit "Copilot";
+        CustLedgerEntries: Record "Cust. Ledger Entry";
+        CustLedgerEntriesCopilot: Page "Cust Ledger Entries Copilot";
     begin
         Copilot.RegisterCapability();
+        CurrPage.custLedgerEntries.Page.Load(CustomerNo, false);
+        CurrPage.custLedgerEntriesOpen.Page.Load(CustomerNo, true);
     end;
 
     var
         UserInput: Text;
         Response: Text;
+        CustomerNo: text;
+
+    internal procedure SetCustomerNo(_CustomerNo: Code[20])
+    begin
+        CustomerNo := _CustomerNo;
+    end;
 }

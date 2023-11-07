@@ -14,22 +14,25 @@ codeunit 50100 Copilot
             CopilotCapability.RegisterCapability(Enum::"Copilot Capability"::"Random text", Enum::"Copilot Availability"::Preview, LearnMoreUrlTxt);
     end;
 
-    procedure Generate(Prompt: text): Text
+    procedure Generate(var CopilotCustLedgerEntries: Record "Copilot Cust Ledger Entries"; var CopilotCustLedgerEntriesOpen: Record "Copilot Cust Ledger Entries"): Text
     var
         AzureOpenAI: Codeunit "Azure OpenAI";
         AOAIOperationResponse: Codeunit "AOAI Operation Response";
         AOAIChatCompletionParams: Codeunit "AOAI Chat Completion Params";
         AOAIChatMessages: Codeunit "AOAI Chat Messages";
         Result: Text;
+        Prompt: text;
     begin
         SetAuthoration(AzureOpenAI);
 
-        AOAIChatCompletionParams.SetMaxTokens(2500);
+        AOAIChatCompletionParams.SetMaxTokens(5000);
         AOAIChatCompletionParams.SetTemperature(0);
 
         AzureOpenAI.SetCopilotCapability(Enum::"Copilot Capability"::"Random text");
         AOAIChatMessages.AddSystemMessage(GetSystemPrompt());
-        AOAIChatMessages.AddUserMessage(GetUserPrompt(Prompt));
+
+        Prompt := GetUserPrompt(CopilotCustLedgerEntries, CopilotCustLedgerEntriesOpen);
+        AOAIChatMessages.AddUserMessage(Prompt);
 
         AzureOpenAI.GenerateChatCompletion(AOAIChatMessages, AOAIChatCompletionParams, AOAIOperationResponse);
 
@@ -56,28 +59,23 @@ codeunit 50100 Copilot
     end;
 
     local procedure GetSystemPrompt() SystemPrompt: Text
-    var
-        Item: Record Item;
     begin
         SystemPrompt += 'The user will provide an sales invoice with an due date and a list of sales invoices that is already paid. Your task is to find the best possible date that the customer will pay.';
         SystemPrompt += 'Try to suggest several dates.';
     end;
 
-    local procedure GetUserPrompt(Prompt: Text) UserPrompt: Text
+    local procedure GetUserPrompt(var CopilotCustLedgerEntries: Record "Copilot Cust Ledger Entries"; var CopilotCustLedgerEntriesOpen: Record "Copilot Cust Ledger Entries") UserPrompt: Text
     var
-        CustLedgerEntry: Record "Cust. Ledger Entry";
         Newline: Char;
     begin
-        CustLedgerEntry.Reset;
-        CustLedgerEntry.SetRange("Document Type", CustLedgerEntry."Document Type"::"Invoice");
-        CustLedgerEntry.SetRange("Open", false);
-        CustLedgerEntry.SetRange("Customer No.", '50000');
-        if CustLedgerEntry.FindSet() then
+        if CopilotCustLedgerEntries.FindSet() then
             repeat
-                UserPrompt += 'Invoice ' + CustLedgerEntry."Document No." + ' is due on ' + format(CustLedgerEntry."Due Date") + 'and paid on ' + format(CustLedgerEntry."Closed at Date") + '.' + Newline;
-            until CustLedgerEntry.Next() = 0;
+                UserPrompt += 'Invoice ' + CopilotCustLedgerEntries."Document No." + ' is due on ' + format(CopilotCustLedgerEntries."Due Date") + ' and paid on ' + format(CopilotCustLedgerEntries."Closed at Date") + '. ' + Newline;
+            until CopilotCustLedgerEntries.Next() = 0;
 
-        UserPrompt += Prompt;
+        UserPrompt += Newline;
+
+        UserPrompt += 'What is the payment date of Sales Invoice ' + CopilotCustLedgerEntriesOpen."Document No." + ' with an due date of ' + format(CopilotCustLedgerEntriesOpen."Due Date") + '?';
     end;
 
 }
